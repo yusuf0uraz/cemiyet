@@ -158,21 +158,34 @@ export const sh = {
 
 // ─── Kategori Tanımları ───────────────────────────────────────
 export const categories = {
-  tenis:    { color: '#E84C2C', label: 'Tenis' },
-  futbol:   { color: '#2E8B57', label: 'Futbol' },
-  bisiklet: { color: '#2E7DD8', label: 'Bisiklet' },
-  yuruyus:  { color: '#5A9143', label: 'Yürüyüş' },
-  kitap:    { color: '#D49B2E', label: 'Kitap' },
-  sinema:   { color: '#7A4DD8', label: 'Sinema' },
-  muzik:    { color: '#C0399E', label: 'Müzik' },
-  atolye:   { color: '#D4622E', label: 'Atölye' },
-  kahve:    { color: '#8B5E2E', label: 'Kahve' },
-  yemek:    { color: '#E5963C', label: 'Yemek' },
-  oyun:     { color: '#1F8A5B', label: 'Oyun' },
-  satranc:  { color: '#1A1814', label: 'Satranç' },
-  dans:     { color: '#C0399E', label: 'Dans' },
-  foto:     { color: '#6B655C', label: 'Fotoğraf' },
-  doga:     { color: '#2E8B57', label: 'Doğa' },
+  // Spor
+  tenis:     { color: '#E84C2C', label: 'Tenis' },
+  futbol:    { color: '#2E8B57', label: 'Futbol' },
+  bisiklet:  { color: '#2E7DD8', label: 'Bisiklet' },
+  yuruyus:   { color: '#5A9143', label: 'Yürüyüş' },
+  bilardo:   { color: '#2B6CB0', label: 'Bilardo' },
+  // Kültür & Sanat
+  kitap:     { color: '#D49B2E', label: 'Kitap' },
+  sinema:    { color: '#7A4DD8', label: 'Sinema' },
+  muzik:     { color: '#C0399E', label: 'Müzik' },
+  foto:      { color: '#6B655C', label: 'Fotoğraf' },
+  dans:      { color: '#E8448C', label: 'Dans' },
+  // Sosyal
+  kahve:     { color: '#8B5E2E', label: 'Kahve' },
+  yemek:     { color: '#E5963C', label: 'Yemek' },
+  doga:      { color: '#2E8B57', label: 'Doğa' },
+  // Eğitim & Oyun
+  atolye:    { color: '#D4622E', label: 'Atölye' },
+  oyun:      { color: '#1F8A5B', label: 'Oyun' },
+  satranc:   { color: '#4A4A4A', label: 'Satranç' },
+  tavla:     { color: '#8B4513', label: 'Tavla' },
+  // Etkinlik Türleri
+  workshop:  { color: '#0D7BBF', label: 'Workshop' },
+  turnuva:   { color: '#B7410E', label: 'Turnuva' },
+  gameJam:   { color: '#6A0DAD', label: 'Game Jam' },
+  hackathon: { color: '#1A7A4A', label: 'Hackathon' },
+  konser:    { color: '#C0399E', label: 'Konser' },
+  sergi:     { color: '#A0522D', label: 'Sergi' },
 } as const;
 
 export type CategoryKey = keyof typeof categories;

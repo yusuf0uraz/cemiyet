@@ -45,9 +45,11 @@ export function EventCreateScreen({ navigation }: Props) {
   const loading = useEventsStore(s => s.loading);
   const clubs = useClubsStore(s => s.clubs);
 
-  const myClub = clubs.find(c => c.myRole === 'reis' || c.myRole === 'yardimci')
-    ?? clubs.find(c => c.myRole !== null)
-    ?? clubs[0];
+  // Yalnızca yönetici/reis olan cemiyetler
+  const managedClubs = clubs.filter(c => c.myRole === 'reis' || c.myRole === 'yardimci');
+  const [selectedClubId, setSelectedClubId] = useState<string>('');
+  const myClub = managedClubs.find(c => c.id === selectedClubId) ?? managedClubs[0];
+  const canCreate = managedClubs.length > 0;
 
   const totalSteps = 4;
 

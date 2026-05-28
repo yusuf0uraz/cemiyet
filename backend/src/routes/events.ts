@@ -87,7 +87,7 @@ router.get('/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
-// POST /events — etkinlik oluştur
+// POST /events — etkinlik oluştur (yalnızca cemiyet yöneticileri)
 router.post('/',
   requireAuth,
   body('title').notEmpty().isLength({ max: 200 }),
@@ -103,6 +103,19 @@ router.post('/',
       date: string; time: string; place: string; capacity?: number;
       photo?: string; free?: boolean;
     };
+
+    // Cemiyet belirtildiyse yönetici/rei kontrolü yap
+    if (club_id) {
+      const { rows: roleRows } = await pool.query(
+        `SELECT role FROM club_members
+         WHERE user_id = $1 AND club_id = $2 AND role IN ('reis','yardimci')`,
+        [req.userId, club_id]
+      );
+      if (roleRows.length === 0) {
+        res.status(403).json({ error: 'Etkinlik oluşturmak için cemiyet yöneticisi olman gerekiyor.' });
+        return;
+      }
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO events (title, cat, club_id, club_name, date, time, place, capacity, photo, free, created_by)

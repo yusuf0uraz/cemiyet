@@ -19,7 +19,19 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.cemiapp.app"
+      "package": "com.cemiapp.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cemiapp.app",
+      "config": {
+        "googleMapsApiKey": ""
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

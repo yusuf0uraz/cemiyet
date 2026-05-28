@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -112,6 +112,15 @@ export function MyProfileScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('PrivacySettings')}
               >
                 <IcnSettings size={18} color={colors.ink} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.iconBtn, { backgroundColor: '#FFF0EE' }]}
+                onPress={() => Alert.alert('Çıkış Yap', 'Hesabından çıkmak istiyor musun?', [
+                  { text: 'İptal', style: 'cancel' },
+                  { text: 'Çıkış Yap', style: 'destructive', onPress: () => logout() },
+                ])}
+              >
+                <Text style={{ fontSize: 14 }}>↩</Text>
               </TouchableOpacity>
             </View>
           </View>
