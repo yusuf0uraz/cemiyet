@@ -9,7 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cemiapp.app"
+      "bundleIdentifier": "com.cemiapp.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyDLPnTCjqpqWdmhBvL_CmcumXdW31UMv8U"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,15 +25,8 @@
       "package": "com.cemiapp.app",
       "config": {
         "googleMaps": {
-          "apiKey": ""
+          "apiKey": "AIzaSyDLPnTCjqpqWdmhBvL_CmcumXdW31UMv8U"
         }
-      }
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.cemiapp.app",
-      "config": {
-        "googleMapsApiKey": ""
       }
     },
     "web": {
