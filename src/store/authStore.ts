@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { setAuthToken } from '../services/apiClient';
 import { authService } from '../services/authService';
-import { firebaseService } from '../services/firebaseService';
 
 const TOKEN_KEY = 'cemiapp_auth_token';
 
@@ -52,16 +51,19 @@ interface AuthState {
   continueAsGuest: () => void;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<UserProfile>) => void;
-
   restoreSession: () => Promise<void>;
 
-  /** Firebase kodu onayla — SmsVerifyScreen'den çağrılır */
-  confirmFirebaseCode: (code: string) => Promise<{ isNew: boolean; phone: string; firebaseUid?: string }>;
-  /** Yeni kullanıcı profili oluştur — ProfileCreateScreen'den çağrılır */
-  register: (payload: { firebaseUid: string; phone: string; name: string; username: string; bio?: string; city?: string }) => Promise<void>;
+  // SMS doğrulama
+  sendCode: (phone: string) => Promise<{ ok: boolean; devCode?: string }>;
+  verifyCode: (phone: string, code: string) => Promise<{ isNew: boolean; phone: string }>;
+
+  // Profil oluşturma
+  register: (payload: {
+    phone: string; name: string; username: string; bio?: string; firebaseUid?: string;
+  }) => Promise<void>;
 
   syncMe: () => Promise<void>;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile & { avatarUrl?: string }>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -76,10 +78,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    await firebaseService.signOut();
     authService.logout().catch(() => {});
     setAuthToken(null);
-    deleteToken();
+    await deleteToken();
     set({ isLoggedIn: false, isGuest: false, user: null, error: null });
   },
 
@@ -102,12 +103,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (u) set({ user: { ...u, ...updates } });
   },
 
-  confirmFirebaseCode: async (code) => {
+  sendCode: async (phone) => {
     set({ loading: true, error: null });
     try {
-      const { idToken, phone } = await firebaseService.confirmCode(code);
-      const res = await authService.firebaseVerify(idToken);
+      const res = await authService.sendCode(phone);
+      set({ loading: false });
+      return { ok: true, devCode: res.code };
+    } catch (err: any) {
+      const isNetwork = !err?.response;
+      const msg = isNetwork
+        ? 'Sunucuya bağlanılamadı. Backend çalışıyor mu kontrol et.'
+        : (err?.response?.data?.error ?? 'Kod gönderilemedi');
+      set({ loading: false, error: msg });
+      return { ok: false };
+    }
+  },
 
+  verifyCode: async (phone, code) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await authService.verify(phone, code);
       if (!res.isNew && res.token && res.user) {
         const user = mapApiUser(res.user as unknown as Record<string, unknown>);
         setAuthToken(res.token);
@@ -116,10 +131,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         set({ loading: false });
       }
-
-      return { isNew: res.isNew, phone: res.phone ?? phone, firebaseUid: res.firebaseUid };
+      return { isNew: res.isNew, phone: res.phone };
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? err?.message ?? 'Kod doğrulanamadı';
+      const isNetwork = !err?.response;
+      const msg = isNetwork
+        ? 'Sunucuya bağlanılamadı.'
+        : (err?.response?.data?.error ?? 'Kod hatalı veya süresi dolmuş');
       set({ loading: false, error: msg });
       throw new Error(msg);
     }
@@ -128,7 +145,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (payload) => {
     set({ loading: true, error: null });
     try {
-      const res = await authService.register(payload);
+      const res = await authService.register({
+        phone: payload.phone,
+        name: payload.name,
+        username: payload.username,
+        bio: payload.bio,
+      });
       const user = mapApiUser(res.user as unknown as Record<string, unknown>);
       setAuthToken(res.token);
       saveToken(res.token);

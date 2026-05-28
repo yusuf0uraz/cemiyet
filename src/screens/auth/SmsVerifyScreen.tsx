@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IcnArrowLeft } from '../../components/ui/Icons';
 import { MonoLabel } from '../../components/ui/Chip';
 import { colors, r, fontSizes } from '../../tokens';
 import type { AuthStackParamList } from '../../types';
 import { useAuthStore } from '../../store/authStore';
-import { firebaseService, firebaseConfig } from '../../services/firebaseService';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SmsVerify'>;
 
@@ -19,9 +17,9 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const phone = route.params?.phone ?? '';
-  const recaptchaRef = useRef<FirebaseRecaptchaVerifierModal>(null);
 
-  const confirmFirebaseCode = useAuthStore(s => s.confirmFirebaseCode);
+  const verifyCode = useAuthStore(s => s.verifyCode);
+  const sendCode = useAuthStore(s => s.sendCode);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -42,6 +40,7 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
       }
       return;
     }
+
     const emptyIdx = digits.findIndex(d => d === '');
     if (emptyIdx < 0 || key === '') return;
 
@@ -55,18 +54,12 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
     const code = next.join('');
 
     try {
-      const { isNew, phone: verifiedPhone, firebaseUid } = await confirmFirebaseCode(code);
+      const { isNew, phone: verifiedPhone } = await verifyCode(phone, code);
       if (isNew) {
-        navigation.navigate('ProfileCreate', { phone: verifiedPhone, firebaseUid });
+        navigation.navigate('ProfileCreate', { phone: verifiedPhone });
       }
     } catch (err: any) {
-      const rawMsg: string = err?.message ?? 'Kod doğrulanamadı';
-      const msg = rawMsg.includes('invalid-verification-code') || rawMsg.includes('INVALID_CODE')
-        ? 'Kod hatalı, tekrar deneyin'
-        : rawMsg.includes('expired') || rawMsg.includes('EXPIRED')
-        ? 'Kodun süresi dolmuş, yeniden gönderin'
-        : 'Kod doğrulanamadı';
-      setErrorMsg(msg);
+      setErrorMsg(err?.message ?? 'Kod doğrulanamadı');
       setDigits(['', '', '', '', '', '']);
     } finally {
       setVerifying(false);
@@ -74,25 +67,13 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
   };
 
   const handleResend = async () => {
-    if (!recaptchaRef.current) return;
     setResendTimer(60);
     setErrorMsg('');
-    try {
-      await firebaseService.resendCode(phone, recaptchaRef.current);
-    } catch (err: any) {
-      setErrorMsg('Kod gönderilemedi');
-    }
+    await sendCode(phone);
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Firebase reCAPTCHA — yeniden gönder için */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaRef}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification
-      />
-
       <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -120,11 +101,9 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
                   d && styles.digitFilled,
                   isActive && !d && styles.digitActive,
                 ]}>
-                  {d ? (
-                    <Text style={styles.digitText}>{d}</Text>
-                  ) : isActive ? (
-                    <View style={styles.cursor} />
-                  ) : null}
+                  {d ? <Text style={styles.digitText}>{d}</Text>
+                    : isActive ? <View style={styles.cursor} />
+                    : null}
                 </View>
               </Animated.View>
             );

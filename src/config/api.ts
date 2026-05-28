@@ -16,6 +16,8 @@ export const API_TIMEOUT = 12000;
 
 export const ENDPOINTS = {
   auth: {
+    sendCode:        '/auth/send-code',
+    verify:          '/auth/verify',
     firebaseVerify:  '/auth/firebase-verify',
     register:        '/auth/register',
     logout:          '/auth/logout',

@@ -150,8 +150,8 @@ export function InterestsScreen({ navigation, route }: Props) {
           style={[styles.btnEmber, selected.size < 3 && styles.btnDisabled]}
           onPress={async () => {
             if (selected.size < 3) return;
-            if (phone && firebaseUid) {
-              await register({ firebaseUid, phone, name, username, bio });
+            if (phone) {
+              await register({ phone, name, username, bio });
             }
             // İlgi alanlarını backend'e kaydet (arka planda)
             try {

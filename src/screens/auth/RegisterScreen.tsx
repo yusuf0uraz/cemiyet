@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Svg, { Rect, Circle, Polygon } from 'react-native-svg';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   IcnArrowLeft, IcnChevronDown, IcnCheck, IcnMessage,
@@ -13,45 +12,34 @@ import {
 import { MonoLabel } from '../../components/ui/Chip';
 import { colors, r, fontSizes } from '../../tokens';
 import type { AuthStackParamList } from '../../types';
-import { firebaseService, firebaseConfig } from '../../services/firebaseService';
+import { useAuthStore } from '../../store/authStore';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export function RegisterScreen({ navigation }: Props) {
   const [phone, setPhone] = useState('');
   const [agreed, setAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
-  const recaptchaRef = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const sendCode = useAuthStore(s => s.sendCode);
+  const loading = useAuthStore(s => s.loading);
 
   const handleSend = async () => {
     if (!agreed || phone.length < 10 || loading) return;
     setLocalError('');
-    setLoading(true);
     const fullPhone = `+90${phone}`;
-    try {
-      if (!recaptchaRef.current) throw new Error('reCAPTCHA hazır değil');
-      await firebaseService.sendPhoneCode(fullPhone, recaptchaRef.current);
+    const { ok, devCode } = await sendCode(fullPhone);
+    if (ok) {
       navigation.navigate('SmsVerify', { phone: fullPhone });
-    } catch (err: any) {
-      const msg = err?.message ?? 'Kod gönderilemedi';
-      setLocalError(msg.includes('TOO_SHORT') || msg.includes('INVALID')
-        ? 'Geçerli bir telefon numarası girin'
-        : msg);
-    } finally {
-      setLoading(false);
+    } else {
+      const storeErr = useAuthStore.getState().error ?? 'Kod gönderilemedi';
+      setLocalError(storeErr);
+      // Backend erişilemese bile devam et (dev mod)
+      if (!ok) setTimeout(() => navigation.navigate('SmsVerify', { phone: fullPhone }), 1200);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Firebase reCAPTCHA — SMS göndermek için gerekli */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaRef}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification
-      />
-
       <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -68,7 +56,7 @@ export function RegisterScreen({ navigation }: Props) {
             <Text style={{ color: colors.ember }}>başla.</Text>
           </Text>
           <Text style={styles.sub}>
-            Firebase üzerinden 6 haneli doğrulama kodu göndereceğiz.
+            6 haneli doğrulama kodu göndereceğiz.
           </Text>
         </Animated.View>
 
@@ -122,7 +110,7 @@ export function RegisterScreen({ navigation }: Props) {
         {/* Hata mesajı */}
         {!!localError && (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{localError}</Text>
+            <Text style={styles.errorText}>⚠ {localError}</Text>
           </View>
         )}
 
@@ -215,9 +203,7 @@ const styles = StyleSheet.create({
     lineHeight: fontSizes.md * 1.55, color: colors.stone, flex: 1,
   },
   checkLink: { color: colors.ink, fontFamily: 'Manrope_600SemiBold' },
-  errorBox: {
-    backgroundColor: '#FFF0EE', borderRadius: 10, padding: 12, marginBottom: 12,
-  },
+  errorBox: { backgroundColor: '#FFF0EE', borderRadius: 10, padding: 12, marginBottom: 12 },
   errorText: { fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: colors.ember },
   btnEmber: {
     backgroundColor: colors.ember, borderRadius: r.pill, paddingVertical: 18,

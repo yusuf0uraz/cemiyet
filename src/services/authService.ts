@@ -2,21 +2,25 @@ import { apiClient, setAuthToken } from './apiClient';
 import { ENDPOINTS } from '../config/api';
 import type { UserProfile } from '../store/authStore';
 
-export interface FirebaseVerifyResponse {
+export interface SendCodeResponse {
+  message: string;
+  code?: string; // sadece development modda döner
+}
+
+export interface VerifyResponse {
   token: string | null;
   user: UserProfile | null;
   phone: string;
   isNew: boolean;
-  firebaseUid?: string;
 }
 
 export interface RegisterPayload {
-  firebaseUid: string;
   phone: string;
   name: string;
   username: string;
   bio?: string;
   city?: string;
+  firebaseUid?: string;
 }
 
 export interface AuthResponse {
@@ -25,17 +29,19 @@ export interface AuthResponse {
 }
 
 export const authService = {
-  /** Firebase ID token ile backend'e giriş yap / kullanıcı doğrula. */
-  async firebaseVerify(idToken: string): Promise<FirebaseVerifyResponse> {
-    const { data } = await apiClient.post<FirebaseVerifyResponse>(
-      ENDPOINTS.auth.firebaseVerify,
-      { idToken }
-    );
+  // ── SMS doğrulama ──────────────────────────────────────────────────────
+  async sendCode(phone: string): Promise<SendCodeResponse> {
+    const { data } = await apiClient.post<SendCodeResponse>(ENDPOINTS.auth.sendCode, { phone });
+    return data;
+  },
+
+  async verify(phone: string, code: string): Promise<VerifyResponse> {
+    const { data } = await apiClient.post<VerifyResponse>(ENDPOINTS.auth.verify, { phone, code });
     if (data.token) setAuthToken(data.token);
     return data;
   },
 
-  /** Yeni kullanıcı profili oluştur. */
+  // ── Profil oluşturma ───────────────────────────────────────────────────
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     const { data } = await apiClient.post<AuthResponse>(ENDPOINTS.auth.register, payload);
     setAuthToken(data.token);

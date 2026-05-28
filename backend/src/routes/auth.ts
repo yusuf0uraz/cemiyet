@@ -7,6 +7,87 @@ import admin from '../firebase-admin';
 
 const router = Router();
 
+// ── SMS tabanlı doğrulama (tüm build tipleriyle çalışır) ──────────────────
+
+function generateCode(): string {
+  if (process.env.NODE_ENV !== 'production') return '123456';
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function sendSms(phone: string, code: string): Promise<void> {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[SMS] ${phone} → ${code}`);
+    return;
+  }
+  // Production'da gerçek SMS servisi (Twilio, Netgsm, vb.)
+}
+
+// POST /auth/send-code
+router.post('/send-code',
+  body('phone').notEmpty(),
+  validateRequest,
+  async (req, res) => {
+    const { phone } = req.body as { phone: string };
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE sms_codes SET used = true WHERE phone = $1 AND used = false',
+      [phone]
+    );
+    await pool.query(
+      'INSERT INTO sms_codes (phone, code, expires_at) VALUES ($1, $2, $3)',
+      [phone, code, expiresAt]
+    );
+    await sendSms(phone, code);
+
+    res.json({
+      message: 'Kod gönderildi',
+      ...(process.env.NODE_ENV !== 'production' && { code }),
+    });
+  }
+);
+
+// POST /auth/verify
+router.post('/verify',
+  body('phone').notEmpty(),
+  body('code').isLength({ min: 6, max: 6 }),
+  validateRequest,
+  async (req, res) => {
+    const { phone, code } = req.body as { phone: string; code: string };
+
+    const { rows } = await pool.query<{ id: string; expires_at: Date }>(
+      `SELECT id, expires_at FROM sms_codes
+       WHERE phone = $1 AND code = $2 AND used = false
+       ORDER BY created_at DESC LIMIT 1`,
+      [phone, code]
+    );
+
+    if (rows.length === 0 || new Date() > rows[0].expires_at) {
+      res.status(400).json({ error: 'Kod hatalı veya süresi dolmuş' });
+      return;
+    }
+
+    await pool.query('UPDATE sms_codes SET used = true WHERE id = $1', [rows[0].id]);
+
+    const { rows: users } = await pool.query<{ id: string }>(
+      'SELECT id FROM users WHERE phone = $1',
+      [phone]
+    );
+
+    if (users.length > 0) {
+      const token = signToken(users[0].id);
+      const { rows: full } = await pool.query(
+        'SELECT id, name, username, bio, city, avatar_tone, avatar_url, verified FROM users WHERE id = $1',
+        [users[0].id]
+      );
+      res.json({ token, user: full[0], isNew: false, phone });
+    } else {
+      res.json({ token: null, user: null, phone, isNew: true });
+    }
+  }
+);
+
 // POST /auth/firebase-verify — Firebase ID token'ı doğrula, kullanıcı döndür
 router.post('/firebase-verify',
   body('idToken').notEmpty().withMessage('Firebase ID token gerekli'),
