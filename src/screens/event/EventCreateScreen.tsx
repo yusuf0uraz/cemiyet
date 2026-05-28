@@ -17,6 +17,7 @@ import type { HomeStackParamList } from '../../types';
 import { useEventsStore } from '../../store/eventsStore';
 import { useClubsStore } from '../../store/clubsStore';
 import { pickImageOrCamera } from '../../hooks/useImagePicker';
+import { uploadImage } from '../../services/uploadService';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EventCreate'>;
 
@@ -38,6 +39,8 @@ export function EventCreateScreen({ navigation }: Props) {
   const [place, setPlace] = useState('');
   const [visibility, setVisibility] = useState('acik');
   const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
+  const [capacity, setCapacity] = useState('');
+  const [uploading, setUploading] = useState(false);
   const createEvent = useEventsStore(s => s.createEvent);
   const loading = useEventsStore(s => s.loading);
   const clubs = useClubsStore(s => s.clubs);
@@ -52,7 +55,19 @@ export function EventCreateScreen({ navigation }: Props) {
   const canNextStep3 = date.trim().length > 0 && time.trim().length > 0 && place.trim().length > 0;
 
   const handlePublish = async () => {
-    if (!selectedCat || loading) return;
+    if (!selectedCat || loading || uploading) return;
+    let photoUrl: string | undefined;
+    if (coverPhoto) {
+      setUploading(true);
+      try {
+        photoUrl = await uploadImage(coverPhoto, 'event');
+      } catch {
+        // Upload başarısız — fotoğrafsız devam et
+      } finally {
+        setUploading(false);
+      }
+    }
+    const cap = capacity.trim() ? parseInt(capacity, 10) : undefined;
     await createEvent({
       cat: selectedCat,
       title: title.trim() || 'Yeni Etkinlik',
@@ -61,9 +76,9 @@ export function EventCreateScreen({ navigation }: Props) {
       date: date.trim() || 'Bugün',
       time: time.trim() || '18:00',
       place: place.trim() || 'Elazığ',
-      capacity: 20,
+      capacity: cap,
       free: visibility === 'acik',
-      photo: coverPhoto ?? undefined,
+      photo: photoUrl,
     });
     navigation.navigate('Home');
   };
@@ -230,8 +245,15 @@ export function EventCreateScreen({ navigation }: Props) {
               <View style={styles.metaRow}>
                 <IcnUsers size={18} color={colors.ember} />
                 <View style={{ flex: 1 }}>
-                  <MonoLabel style={{ fontSize: 9 }}>KAPASİTE</MonoLabel>
-                  <Text style={styles.fieldValue}>Sınırsız</Text>
+                  <MonoLabel style={{ fontSize: 9 }}>KAPASİTE (isteğe bağlı)</MonoLabel>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={capacity}
+                    onChangeText={v => setCapacity(v.replace(/[^0-9]/g, ''))}
+                    placeholder="Sınırsız"
+                    placeholderTextColor={colors.stone2}
+                    keyboardType="number-pad"
+                  />
                 </View>
               </View>
             </View>
@@ -305,7 +327,7 @@ export function EventCreateScreen({ navigation }: Props) {
           }
           activeOpacity={0.85}
         >
-          <Text style={styles.nextBtnText}>{step === totalSteps ? (loading ? 'Yayınlanıyor...' : 'Yayınla') : 'Devam'}</Text>
+          <Text style={styles.nextBtnText}>{step === totalSteps ? (uploading ? 'Yükleniyor...' : loading ? 'Yayınlanıyor...' : 'Yayınla') : 'Devam'}</Text>
           <IcnArrow size={18} color="#fff" />
         </TouchableOpacity>
       </View>

@@ -25,7 +25,7 @@ router.post('/:userId', requireAuth, async (req, res) => {
     res.json({ following: false });
   } else {
     await pool.query(
-      'INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      'INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT (follower_id, following_id) DO NOTHING',
       [req.userId, targetId]
     );
     res.json({ following: true });

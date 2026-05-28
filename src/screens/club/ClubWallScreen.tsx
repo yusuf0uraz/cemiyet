@@ -148,7 +148,7 @@ export function ClubWallScreen({ navigation, route }: Props) {
                 {/* Gönderi üstü */}
                 <View style={styles.postHeader}>
                   <TouchableOpacity
-                    onPress={() => (navigation as any).navigate('OtherProfile', { userId: post.author_id })}
+                    onPress={() => navigation.navigate('OtherProfile', { userId: post.author_id })}
                     activeOpacity={0.85}
                   >
                     <Avatar name={post.author_name} tone={tone} size={40} />

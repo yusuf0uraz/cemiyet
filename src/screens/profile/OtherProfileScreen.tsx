@@ -79,23 +79,24 @@ const MUTUAL_FRIENDS = [
 ];
 
 export function OtherProfileScreen({ navigation, route }: Props) {
-  const userId = route.params?.userId ?? 'default';
+  const userId = route.params?.userId ?? '';
   const seedProfile = USER_SEEDS[userId] ?? USER_SEEDS.default;
 
   const [apiUser, setApiUser] = useState<PublicUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
   const clubs = useClubsStore(s => s.clubs);
-  const profileCats = new Set(seedProfile.cats.map(c => c.key));
-  const sharedClubs = clubs.filter(c => profileCats.has(c.cat as any)).slice(0, 3);
 
   const [following, setFollowing] = useState(false);
   const showToast = useToastStore(s => s.show);
   const addNotif = useNotifStore(s => s.add);
   const isPrivate = false;
 
-  // Gerçek API'den kullanıcı verisini çek
   useEffect(() => {
-    usersService.getProfile(userId).then(setApiUser).catch(() => {});
-    followsService.getStatus(userId).then(({ following: f }) => setFollowing(f)).catch(() => {});
+    if (!userId) { setLoadingUser(false); return; }
+    Promise.allSettled([
+      usersService.getProfile(userId).then(setApiUser),
+      followsService.getStatus(userId).then(({ following: f }) => setFollowing(f)),
+    ]).finally(() => setLoadingUser(false));
   }, [userId]);
 
   // API verisi gelince onu, yoksa seed kullan
@@ -103,13 +104,17 @@ export function OtherProfileScreen({ navigation, route }: Props) {
     name: apiUser.name,
     username: apiUser.username,
     tone: (apiUser.avatar_tone as '1'|'2'|'3'|'4'|'5') ?? '1',
+    avatarUrl: (apiUser as any).avatar_url as string | undefined,
     bio: apiUser.bio ?? '',
     badges: apiUser.verified ? ['verified'] : [],
     cats: seedProfile.cats,
-    eventCount: apiUser.event_count,
-    followerCount: apiUser.follower_count,
+    eventCount: apiUser.event_count ?? 0,
+    followerCount: apiUser.follower_count ?? 0,
     gradientColors: seedProfile.gradientColors,
   } : seedProfile;
+
+  // Ortak kulübümüz var mı?
+  const sharedClubs = clubs.slice(0, 3);
 
   const handleFollow = useCallback(() => {
     const next = !following;
@@ -227,7 +232,7 @@ export function OtherProfileScreen({ navigation, route }: Props) {
                   key={i}
                   style={styles.clubChip}
                   activeOpacity={0.85}
-                  onPress={() => (navigation as any).navigate('ClubProfile', { clubId: club.id })}
+                  onPress={() => navigation.navigate('ClubProfile', { clubId: club.id })}
                 >
                   <CategoryIcon name={club.cat} size={18} filled />
                   <Text style={styles.clubChipText}>{club.name}</Text>

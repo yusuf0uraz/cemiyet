@@ -7,6 +7,7 @@ export interface PublicUser {
   bio: string;
   city: string;
   avatar_tone: string;
+  avatar_url?: string;
   verified: boolean;
   follower_count: number;
   following_count: number;

@@ -226,7 +226,7 @@ export function ClubProfileScreen({ navigation, route }: Props) {
                   key={ev.id}
                   style={styles.eventCard}
                   activeOpacity={0.85}
-                  onPress={() => (navigation as any).navigate('EventDetail', { eventId: ev.id })}
+                  onPress={() => navigation.navigate('EventDetail', { eventId: ev.id })}
                 >
                   <PhotoSlot tone={String((i % 5) + 1) as any} height={70} width={70} style={{ borderRadius: r.md }} />
                   <View style={{ flex: 1 }}>
@@ -261,7 +261,7 @@ export function ClubProfileScreen({ navigation, route }: Props) {
                     key={m.id}
                     style={styles.memberRow}
                     activeOpacity={0.85}
-                    onPress={() => (navigation as any).navigate('OtherProfile', { userId: m.id })}
+                    onPress={() => navigation.navigate('OtherProfile', { userId: m.id })}
                   >
                     <Avatar name={m.name} tone={tone} size={44} />
                     <View style={{ flex: 1 }}>

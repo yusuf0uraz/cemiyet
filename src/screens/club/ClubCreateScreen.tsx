@@ -16,6 +16,7 @@ import type { ClubStackParamList } from '../../types';
 import { useClubsStore } from '../../store/clubsStore';
 import { imageFor } from '../../data/mockImages';
 import { pickImageOrCamera } from '../../hooks/useImagePicker';
+import { uploadImage } from '../../services/uploadService';
 
 type Props = NativeStackScreenProps<ClubStackParamList, 'ClubCreate'>;
 
@@ -37,16 +38,28 @@ export function ClubCreateScreen({ navigation }: Props) {
   const totalSteps = 3;
   const createClub = useClubsStore(s => s.createClub);
   const loading = useClubsStore(s => s.loading);
+  const [uploading, setUploading] = useState(false);
 
   const canNextStep2 = clubName.trim().length >= 3;
 
   const handleCreate = async () => {
-    if (!selectedCat || loading) return;
+    if (!selectedCat || loading || uploading) return;
+    let photoUrl: string | undefined;
+    if (coverPhoto) {
+      setUploading(true);
+      try {
+        photoUrl = await uploadImage(coverPhoto, 'club');
+      } catch {
+        // Upload başarısız — fotoğrafsız devam et
+      } finally {
+        setUploading(false);
+      }
+    }
     await createClub({
       name: clubName.trim() || 'Yeni Cemiyet',
       cat: selectedCat,
       description: description.trim() || "Elazığ'da yeni kurulan cemiyet.",
-      photo: coverPhoto ?? undefined,
+      photo: photoUrl,
       membership_model: membershipModel as 'acik' | 'onay' | 'kapali',
     });
     navigation.navigate('Clubs');
