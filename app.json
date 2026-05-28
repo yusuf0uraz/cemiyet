@@ -1,13 +1,14 @@
 {
   "expo": {
-    "name": "Cemiyet-App",
-    "slug": "Cemiyet-App",
+    "name": "CemiApp",
+    "slug": "cemiapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cemiapp.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +17,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.cemiapp.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,8 +39,12 @@
           "photosPermission": "Profil fotoğrafı seçmek için galeri erişimi gerekli.",
           "cameraPermission": "Profil fotoğrafı çekmek için kamera erişimi gerekli."
         }
-      ],
-      "expo-web-browser"
-    ]
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cemiapp"
+      }
+    }
   }
 }

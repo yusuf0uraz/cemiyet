@@ -3,6 +3,7 @@ import { View, ActivityIndicator, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
   Manrope_400Regular,
@@ -24,7 +25,7 @@ import { useClubsStore } from './src/store/clubsStore';
 import { colors, fontSizes } from './src/tokens';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
     Manrope_600SemiBold,
@@ -47,9 +48,7 @@ export default function App() {
       try {
         setLoadingLabel('Oturum yükleniyor...');
         await restoreSession();
-
         setLoadingLabel('Veriler yükleniyor...');
-        // Paralel yükle
         await Promise.allSettled([
           fetchEvents(),
           fetchClubs(),
@@ -57,18 +56,24 @@ export default function App() {
           fetchJoined(),
         ]);
       } catch {
-        // Hata olsa bile uygulamayı aç
+        // hata olsa bile uygulamayı aç
       } finally {
         setSessionRestored(true);
       }
     })();
   }, []);
 
-  if (!fontsLoaded || !sessionRestored) {
+  if ((!fontsLoaded && !fontError) || !sessionRestored) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+      <View style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+      }}>
         <ActivityIndicator color={colors.ember} size="large" />
-        <Text style={{ fontFamily: 'undefined', fontSize: 14, color: colors.stone }}>
+        <Text style={{ fontFamily: 'System', fontSize: 14, color: colors.stone }}>
           {loadingLabel}
         </Text>
       </View>
@@ -76,13 +81,15 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <RootNavigator />
-        <ToastContainer />
-        <GuestPromptModal />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <StatusBar style="dark" />
+          <RootNavigator />
+          <ToastContainer />
+          <GuestPromptModal />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
