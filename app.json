@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Cemiyet-App",
+    "slug": "Cemiyet-App",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-firebase/app",
+      "expo-image",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Haritada konumunu görmek için konum izni gerekli.",
+          "locationWhenInUsePermission": "Haritada yakınındaki etkinlikleri görmek için konum izni gerekli."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Profil fotoğrafı seçmek için galeri erişimi gerekli.",
+          "cameraPermission": "Profil fotoğrafı çekmek için kamera erişimi gerekli."
+        }
+      ]
+    ]
+  }
+}
