@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Svg, { Rect, Circle, Polygon } from 'react-native-svg';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   IcnArrowLeft, IcnChevronDown, IcnCheck, IcnMessage,
@@ -12,30 +13,45 @@ import {
 import { MonoLabel } from '../../components/ui/Chip';
 import { colors, r, fontSizes } from '../../tokens';
 import type { AuthStackParamList } from '../../types';
-import { useAuthStore } from '../../store/authStore';
+import { firebaseService, firebaseConfig } from '../../services/firebaseService';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export function RegisterScreen({ navigation }: Props) {
   const [phone, setPhone] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
-  const sendFirebaseCode = useAuthStore(s => s.sendFirebaseCode);
-  const loading = useAuthStore(s => s.loading);
+  const recaptchaRef = useRef<FirebaseRecaptchaVerifierModal>(null);
 
   const handleSend = async () => {
+    if (!agreed || phone.length < 10 || loading) return;
     setLocalError('');
+    setLoading(true);
     const fullPhone = `+90${phone}`;
-    const { ok } = await sendFirebaseCode(fullPhone);
-    if (ok) {
+    try {
+      if (!recaptchaRef.current) throw new Error('reCAPTCHA hazır değil');
+      await firebaseService.sendPhoneCode(fullPhone, recaptchaRef.current);
       navigation.navigate('SmsVerify', { phone: fullPhone });
-    } else {
-      setLocalError(useAuthStore.getState().error ?? 'Kod gönderilemedi');
+    } catch (err: any) {
+      const msg = err?.message ?? 'Kod gönderilemedi';
+      setLocalError(msg.includes('TOO_SHORT') || msg.includes('INVALID')
+        ? 'Geçerli bir telefon numarası girin'
+        : msg);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* Firebase reCAPTCHA — SMS göndermek için gerekli */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaRef}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification
+      />
+
       <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -105,10 +121,8 @@ export function RegisterScreen({ navigation }: Props) {
 
         {/* Hata mesajı */}
         {!!localError && (
-          <View style={{ backgroundColor: '#FFF0EE', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-            <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: colors.ember }}>
-              {localError}
-            </Text>
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{localError}</Text>
           </View>
         )}
 
@@ -159,161 +173,70 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   root: { flex: 1, paddingHorizontal: 20 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    paddingBottom: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 8, paddingBottom: 16,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.surface,
+    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surface,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowColor: colors.ink, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2, elevation: 2,
   },
   titleArea: { marginBottom: 28 },
   title: {
-    fontFamily: 'Manrope_800ExtraBold',
-    fontSize: fontSizes.displayLg,
-    color: colors.ink,
-    lineHeight: fontSizes.displayLg * 1.02,
-    letterSpacing: -1,
+    fontFamily: 'Manrope_800ExtraBold', fontSize: fontSizes.displayLg,
+    color: colors.ink, lineHeight: fontSizes.displayLg * 1.02, letterSpacing: -1,
   },
   sub: {
-    fontFamily: 'Manrope_500Medium',
-    fontSize: fontSizes.xl,
-    color: colors.stone,
-    marginTop: 14,
-    lineHeight: fontSizes.xl * 1.55,
+    fontFamily: 'Manrope_500Medium', fontSize: fontSizes.xl,
+    color: colors.stone, marginTop: 14, lineHeight: fontSizes.xl * 1.55,
   },
   inputCard: {
-    backgroundColor: colors.surface,
-    borderRadius: r.lg,
-    padding: 18,
-    marginBottom: 22,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.surface, borderRadius: r.lg, padding: 18, marginBottom: 22,
+    shadowColor: colors.ink, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2, elevation: 2,
   },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 8,
-  },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
   countryPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.bg2,
-    padding: 10,
-    paddingHorizontal: 14,
-    borderRadius: r.md,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.bg2, padding: 10, paddingHorizontal: 14, borderRadius: r.md,
   },
-  dialCode: {
-    fontFamily: 'Manrope_700Bold',
-    fontSize: fontSizes['3xl'],
-    color: colors.ink,
-  },
-  phoneInput: {
-    flex: 1,
-    fontFamily: 'Manrope_700Bold',
-    fontSize: 22,
-    color: colors.ink,
-    letterSpacing: 0.4,
-  },
+  dialCode: { fontFamily: 'Manrope_700Bold', fontSize: fontSizes['3xl'], color: colors.ink },
+  phoneInput: { flex: 1, fontFamily: 'Manrope_700Bold', fontSize: 22, color: colors.ink, letterSpacing: 0.4 },
   checkRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-    marginBottom: 28,
-    padding: 12,
-    paddingHorizontal: 14,
-    backgroundColor: colors.surface,
-    borderRadius: r.md,
+    flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 28,
+    padding: 12, paddingHorizontal: 14, backgroundColor: colors.surface, borderRadius: r.md,
   },
   checkbox: {
-    width: 22, height: 22, borderRadius: 6,
-    borderWidth: 1.5, borderColor: colors.rule,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.rule,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  checkboxActive: {
-    backgroundColor: colors.ember,
-    borderColor: colors.ember,
-  },
+  checkboxActive: { backgroundColor: colors.ember, borderColor: colors.ember },
   checkText: {
-    fontFamily: 'Manrope_500Medium',
-    fontSize: fontSizes.md,
-    lineHeight: fontSizes.md * 1.55,
-    color: colors.stone,
-    flex: 1,
+    fontFamily: 'Manrope_500Medium', fontSize: fontSizes.md,
+    lineHeight: fontSizes.md * 1.55, color: colors.stone, flex: 1,
   },
-  checkLink: {
-    color: colors.ink,
-    fontFamily: 'Manrope_600SemiBold',
+  checkLink: { color: colors.ink, fontFamily: 'Manrope_600SemiBold' },
+  errorBox: {
+    backgroundColor: '#FFF0EE', borderRadius: 10, padding: 12, marginBottom: 12,
   },
+  errorText: { fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: colors.ember },
   btnEmber: {
-    backgroundColor: colors.ember,
-    borderRadius: r.pill,
-    paddingVertical: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
+    backgroundColor: colors.ember, borderRadius: r.pill, paddingVertical: 18,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    shadowColor: colors.ember, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10,
   },
   btnDisabled: { opacity: 0.5 },
-  btnText: {
-    color: '#fff',
-    fontFamily: 'Manrope_700Bold',
-    fontSize: fontSizes['2xl'],
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 32,
-  },
-  dividerLine: {
-    flex: 1, height: 1, backgroundColor: colors.rule,
-  },
+  btnText: { color: '#fff', fontFamily: 'Manrope_700Bold', fontSize: fontSizes['2xl'] },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 32 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.rule },
   dividerText: {
-    fontFamily: 'JetBrainsMono_500Medium',
-    fontSize: fontSizes.sm,
-    letterSpacing: 1.8,
-    color: colors.stone2,
+    fontFamily: 'JetBrainsMono_500Medium', fontSize: fontSizes.sm,
+    letterSpacing: 1.8, color: colors.stone2,
   },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 32,
-  },
+  socialRow: { flexDirection: 'row', gap: 10, marginBottom: 32 },
   socialBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.rule,
-    borderRadius: r.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    flex: 1, paddingVertical: 14, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.rule, borderRadius: r.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  socialText: {
-    fontFamily: 'Manrope_600SemiBold',
-    fontSize: fontSizes.lg,
-    color: colors.ink,
-  },
+  socialText: { fontFamily: 'Manrope_600SemiBold', fontSize: fontSizes.lg, color: colors.ink },
 });

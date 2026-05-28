@@ -55,8 +55,6 @@ interface AuthState {
 
   restoreSession: () => Promise<void>;
 
-  /** Firebase ile telefon doğrulama — RegisterScreen'den çağrılır */
-  sendFirebaseCode: (phone: string) => Promise<{ ok: boolean }>;
   /** Firebase kodu onayla — SmsVerifyScreen'den çağrılır */
   confirmFirebaseCode: (code: string) => Promise<{ isNew: boolean; phone: string; firebaseUid?: string }>;
   /** Yeni kullanıcı profili oluştur — ProfileCreateScreen'den çağrılır */
@@ -102,19 +100,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateUser: (updates) => {
     const u = get().user;
     if (u) set({ user: { ...u, ...updates } });
-  },
-
-  sendFirebaseCode: async (phone) => {
-    set({ loading: true, error: null });
-    try {
-      await firebaseService.sendPhoneCode(phone);
-      set({ loading: false });
-      return { ok: true };
-    } catch (err: any) {
-      const msg = err?.message ?? 'SMS gönderilemedi';
-      set({ loading: false, error: msg });
-      return { ok: false };
-    }
   },
 
   confirmFirebaseCode: async (code) => {

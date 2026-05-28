@@ -7,8 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -17,14 +16,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "googleServicesFile": "./google-services.json"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@react-native-firebase/app",
       "expo-image",
       [
         "expo-location",
@@ -40,7 +37,8 @@
           "photosPermission": "Profil fotoğrafı seçmek için galeri erişimi gerekli.",
           "cameraPermission": "Profil fotoğrafı çekmek için kamera erişimi gerekli."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

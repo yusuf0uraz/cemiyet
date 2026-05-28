@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IcnArrowLeft } from '../../components/ui/Icons';
 import { MonoLabel } from '../../components/ui/Chip';
 import { colors, r, fontSizes } from '../../tokens';
 import type { AuthStackParamList } from '../../types';
 import { useAuthStore } from '../../store/authStore';
+import { firebaseService, firebaseConfig } from '../../services/firebaseService';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SmsVerify'>;
 
@@ -17,9 +19,9 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const phone = route.params?.phone ?? '';
+  const recaptchaRef = useRef<FirebaseRecaptchaVerifierModal>(null);
 
   const confirmFirebaseCode = useAuthStore(s => s.confirmFirebaseCode);
-  const sendFirebaseCode = useAuthStore(s => s.sendFirebaseCode);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -35,18 +37,15 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
     if (key === '⌫') {
       const idx = digits.findLastIndex(d => d !== '');
       if (idx >= 0) {
-        const next = [...digits];
-        next[idx] = '';
+        const next = [...digits]; next[idx] = '';
         setDigits(next);
       }
       return;
     }
-
     const emptyIdx = digits.findIndex(d => d === '');
     if (emptyIdx < 0 || key === '') return;
 
-    const next = [...digits];
-    next[emptyIdx] = key;
+    const next = [...digits]; next[emptyIdx] = key;
     setDigits(next);
 
     if (!next.every(d => d !== '')) return;
@@ -60,9 +59,14 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
       if (isNew) {
         navigation.navigate('ProfileCreate', { phone: verifiedPhone, firebaseUid });
       }
-      // isNew === false → confirmFirebaseCode içinde isLoggedIn = true → RootNavigator geçiş yapar
     } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Kod doğrulanamadı');
+      const rawMsg: string = err?.message ?? 'Kod doğrulanamadı';
+      const msg = rawMsg.includes('invalid-verification-code') || rawMsg.includes('INVALID_CODE')
+        ? 'Kod hatalı, tekrar deneyin'
+        : rawMsg.includes('expired') || rawMsg.includes('EXPIRED')
+        ? 'Kodun süresi dolmuş, yeniden gönderin'
+        : 'Kod doğrulanamadı';
+      setErrorMsg(msg);
       setDigits(['', '', '', '', '', '']);
     } finally {
       setVerifying(false);
@@ -70,14 +74,26 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
   };
 
   const handleResend = async () => {
+    if (!recaptchaRef.current) return;
     setResendTimer(60);
-    await sendFirebaseCode(phone);
+    setErrorMsg('');
+    try {
+      await firebaseService.resendCode(phone, recaptchaRef.current);
+    } catch (err: any) {
+      setErrorMsg('Kod gönderilemedi');
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* Firebase reCAPTCHA — yeniden gönder için */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaRef}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification
+      />
+
       <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <IcnArrowLeft size={20} color={colors.ink} />
@@ -85,7 +101,6 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
           <MonoLabel>2 / 4</MonoLabel>
         </View>
 
-        {/* Başlık */}
         <View style={styles.titleArea}>
           <Text style={styles.title}>Kodu gir.</Text>
           <Text style={styles.sub}>
@@ -116,12 +131,9 @@ export function SmsVerifyScreen({ navigation, route }: Props) {
           })}
         </View>
 
-        {/* Hata mesajı */}
         {!!errorMsg && (
-          <View style={{ backgroundColor: '#FFF0EE', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-            <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 14, color: colors.ember, textAlign: 'center' }}>
-              {errorMsg}
-            </Text>
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
           </View>
         )}
 
@@ -170,121 +182,52 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   root: { flex: 1, paddingHorizontal: 20 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 8, paddingBottom: 16,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.surface,
+    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surface,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowColor: colors.ink, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2, elevation: 2,
   },
   titleArea: { marginBottom: 28 },
-  title: {
-    fontFamily: 'Manrope_800ExtraBold',
-    fontSize: fontSizes.displayLg,
-    color: colors.ink,
-    letterSpacing: -1,
-  },
+  title: { fontFamily: 'Manrope_800ExtraBold', fontSize: fontSizes.displayLg, color: colors.ink, letterSpacing: -1 },
   sub: {
-    fontFamily: 'Manrope_500Medium',
-    fontSize: fontSizes.xl,
-    color: colors.stone,
-    marginTop: 12,
-    lineHeight: fontSizes.xl * 1.55,
+    fontFamily: 'Manrope_500Medium', fontSize: fontSizes.xl,
+    color: colors.stone, marginTop: 12, lineHeight: fontSizes.xl * 1.55,
   },
-  digitRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 24,
-  },
+  digitRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   digitBox: {
-    flex: 1, height: 60,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.rule,
-    borderRadius: r.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
+    flex: 1, height: 60, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.rule, borderRadius: r.md,
+    alignItems: 'center', justifyContent: 'center', width: '100%',
   },
   digitFilled: {
-    backgroundColor: colors.ember,
-    borderColor: colors.ember,
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: colors.ember, borderColor: colors.ember,
+    shadowColor: colors.ember, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
-  digitActive: {
-    borderWidth: 2,
-    borderColor: colors.ember,
-  },
-  digitText: {
-    fontFamily: 'Manrope_800ExtraBold',
-    fontSize: 26,
-    color: '#fff',
-  },
-  cursor: {
-    width: 2, height: 26,
-    backgroundColor: colors.ember,
-  },
+  digitActive: { borderWidth: 2, borderColor: colors.ember },
+  digitText: { fontFamily: 'Manrope_800ExtraBold', fontSize: 26, color: '#fff' },
+  cursor: { width: 2, height: 26, backgroundColor: colors.ember },
+  errorBox: { backgroundColor: '#FFF0EE', borderRadius: 10, padding: 12, marginBottom: 12 },
+  errorText: { fontFamily: 'Manrope_600SemiBold', fontSize: 14, color: colors.ember, textAlign: 'center' },
   resendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    paddingHorizontal: 18,
-    backgroundColor: colors.surface,
-    borderRadius: r.md,
-    marginBottom: 24,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 14, paddingHorizontal: 18, backgroundColor: colors.surface,
+    borderRadius: r.md, marginBottom: 24,
   },
-  resendLabel: {
-    fontFamily: 'Manrope_500Medium',
-    fontSize: fontSizes.lg,
-    color: colors.stone,
-  },
-  resendTimer: {
-    fontFamily: 'Manrope_700Bold',
-    fontSize: fontSizes.lg,
-    color: colors.stone,
-  },
+  resendLabel: { fontFamily: 'Manrope_500Medium', fontSize: fontSizes.lg, color: colors.stone },
+  resendTimer: { fontFamily: 'Manrope_700Bold', fontSize: fontSizes.lg, color: colors.stone },
   keyboard: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 14,
-    paddingBottom: 36,
-    gap: 10,
+    flexDirection: 'row', flexWrap: 'wrap', padding: 14, paddingBottom: 36, gap: 10,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 10,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    shadowColor: colors.ink, shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 10,
   },
   keyBtn: {
-    width: '30%',
-    height: 52,
-    backgroundColor: colors.bg,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexBasis: '30%',
+    width: '30%', height: 52, backgroundColor: colors.bg,
+    borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexBasis: '30%',
   },
-  keyEmpty: {
-    backgroundColor: 'transparent',
-  },
-  keyText: {
-    fontFamily: 'Manrope_700Bold',
-    fontSize: 22,
-    color: colors.ink,
-  },
+  keyEmpty: { backgroundColor: 'transparent' },
+  keyText: { fontFamily: 'Manrope_700Bold', fontSize: 22, color: colors.ink },
 });
