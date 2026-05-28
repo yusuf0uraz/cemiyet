@@ -25,7 +25,7 @@ export async function uploadImage(uri: string, type: UploadType): Promise<string
   } as any);
 
   const { data } = await apiClient.post<{ url: string }>(endpoint, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    // Content-Type'ı elle set etme — Axios boundary'yi otomatik ekler
     timeout: 30000,
   });
 

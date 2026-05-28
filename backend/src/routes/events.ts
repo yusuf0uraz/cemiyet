@@ -32,9 +32,9 @@ router.get('/me/joined', requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-// GET /events — liste (isteğe bağlı: ?cat=tenis&live=true&club_id=...)
+// GET /events — liste (isteğe bağlı: ?cat=tenis&live=true&club_id=...&q=ara)
 router.get('/', optionalAuth, async (req, res) => {
-  const { cat, live, limit = '20', offset = '0', club_id } = req.query as Record<string, string>;
+  const { cat, live, limit = '20', offset = '0', club_id, q } = req.query as Record<string, string>;
 
   // Giriş yapmışsa ilgi alanlarını al
   let userInterests: string[] = [];
@@ -58,9 +58,10 @@ router.get('/', optionalAuth, async (req, res) => {
   let i = hasInterests ? 2 : 1;
   if (hasInterests) params.push(userInterests);
 
-  if (cat)     { sql += ` AND e.cat = $${i++}`;     params.push(cat); }
-  if (club_id) { sql += ` AND e.club_id = $${i++}`; params.push(club_id); }
+  if (cat)          { sql += ` AND e.cat = $${i++}`;                                          params.push(cat); }
+  if (club_id)      { sql += ` AND e.club_id = $${i++}`;                                      params.push(club_id); }
   if (live === 'true') { sql += ` AND e.is_live = true`; }
+  if (q)            { sql += ` AND (e.title ILIKE $${i} OR e.place ILIKE $${i} OR e.club_name ILIKE $${i})`; params.push(`%${q}%`); i++; }
 
   sql += hasInterests
     ? ` ORDER BY e.is_live DESC, interest_score DESC, e.created_at DESC LIMIT $${i++} OFFSET $${i++}`

@@ -43,7 +43,8 @@ apiClient.interceptors.response.use(
 // API'nin erişilebilir olup olmadığını test et
 export async function checkApiConnection(): Promise<boolean> {
   try {
-    await apiClient.get('/health'.replace('/api', '').replace('/api', ''), { timeout: 3000 });
+    const baseUrl = API_BASE_URL.replace('/api', '');
+    await apiClient.get(`${baseUrl}/health`, { timeout: 3000, baseURL: '' });
     return true;
   } catch {
     return false;

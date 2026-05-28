@@ -38,8 +38,9 @@ export default function App() {
 
   const restoreSession = useAuthStore(s => s.restoreSession);
   const fetchBookmarks = useEventsStore(s => s.fetchBookmarks);
-  const fetchEvents   = useEventsStore(s => s.fetchEvents);
-  const fetchClubs    = useClubsStore(s => s.fetchClubs);
+  const fetchJoined    = useEventsStore(s => s.fetchJoined);
+  const fetchEvents    = useEventsStore(s => s.fetchEvents);
+  const fetchClubs     = useClubsStore(s => s.fetchClubs);
 
   useEffect(() => {
     (async () => {
@@ -53,6 +54,7 @@ export default function App() {
           fetchEvents(),
           fetchClubs(),
           fetchBookmarks(),
+          fetchJoined(),
         ]);
       } catch {
         // Hata olsa bile uygulamayı aç

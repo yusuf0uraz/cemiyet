@@ -47,6 +47,7 @@ export function ClubCreateScreen({ navigation }: Props) {
       cat: selectedCat,
       description: description.trim() || "Elazığ'da yeni kurulan cemiyet.",
       photo: coverPhoto ?? undefined,
+      membership_model: membershipModel as 'acik' | 'onay' | 'kapali',
     });
     navigation.navigate('Clubs');
   };

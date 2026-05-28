@@ -13,6 +13,7 @@ import type { CategoryKey } from '../../tokens';
 import { useAuthStore } from '../../store/authStore';
 import { useClubsStore } from '../../store/clubsStore';
 import { apiClient } from '../../services/apiClient';
+import { ENDPOINTS } from '../../config/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Interests'>;
 
@@ -154,7 +155,7 @@ export function InterestsScreen({ navigation, route }: Props) {
             }
             // İlgi alanlarını backend'e kaydet (arka planda)
             try {
-              await apiClient.post('/users/interests', {
+              await apiClient.post(ENDPOINTS.users.interests, {
                 categories: Array.from(selected),
               });
             } catch { /* sessizce geç */ }

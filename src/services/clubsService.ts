@@ -8,6 +8,7 @@ export interface CreateClubPayload {
   description?: string;
   city?: string;
   photo?: string;
+  membership_model?: 'acik' | 'onay' | 'kapali';
 }
 
 export interface WallPost {

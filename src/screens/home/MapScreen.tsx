@@ -19,7 +19,6 @@ import { useClubsStore } from '../../store/clubsStore';
 
 type Props = NativeStackScreenProps<MapStackParamList, 'Map'>;
 
-// Elazığ merkez koordinatları
 const ELAZIG = {
   latitude: 38.6748,
   longitude: 39.2225,
@@ -38,28 +37,29 @@ type MapPin = {
   color: string;
 };
 
-// Coğrafi sabitler — kulüp adına göre ID'ler runtime'da eşleştirilir
-const PIN_DEFS = [
-  { id: 'tenis-01',   cat: 'tenis'   as const, title: 'F.Ü. Tenis Kortları', latitude: 38.6826, longitude: 39.2311, color: '#E84C2C', nameHint: 'Tenis'    },
-  { id: 'yuruyus-01', cat: 'yuruyus' as const, title: 'Hazar Gölü Parkuru',  latitude: 38.4937, longitude: 39.4236, color: '#2E8B57', nameHint: 'Yürüyüş'  },
-  { id: 'kitap-01',   cat: 'kitap'   as const, title: 'Şehir Kütüphanesi',   latitude: 38.6745, longitude: 39.2231, color: '#D49B2E', nameHint: 'Kitap'    },
-  { id: 'muzik-01',   cat: 'muzik'   as const, title: 'Merkez Kültür Evi',   latitude: 38.6756, longitude: 39.2185, color: '#7B4FA0', nameHint: 'Müzik'    },
-  { id: 'foto-01',    cat: 'foto'    as const, title: 'Harput Kalesi',        latitude: 38.7086, longitude: 39.2531, color: '#2E7DD8', nameHint: 'Foto'     },
+// Elazığ'daki sabit konumlar — kategori bazlı club eşleşmesi runtime'da yapılır
+const PIN_DEFS: Omit<MapPin, 'count' | 'clubId'>[] = [
+  { id: 'tenis-01',   cat: 'tenis',   title: 'F.Ü. Tenis Kortları',        latitude: 38.6826, longitude: 39.2311, color: '#E84C2C' },
+  { id: 'yuruyus-01', cat: 'yuruyus', title: 'Hazar Gölü Yürüyüş Parkuru', latitude: 38.4937, longitude: 39.4236, color: '#2E8B57' },
+  { id: 'kitap-01',   cat: 'kitap',   title: 'Şehir Kütüphanesi',           latitude: 38.6745, longitude: 39.2231, color: '#D49B2E' },
+  { id: 'muzik-01',   cat: 'muzik',   title: 'Merkez Kültür Evi',           latitude: 38.6756, longitude: 39.2185, color: '#7B4FA0' },
+  { id: 'foto-01',    cat: 'foto',    title: 'Harput Kalesi',                latitude: 38.7086, longitude: 39.2531, color: '#2E7DD8' },
+  { id: 'futbol-01',  cat: 'futbol',  title: 'E.Ü. Futbol Sahası',          latitude: 38.6801, longitude: 39.2398, color: '#1A7F3C' },
+  { id: 'bisiklet-01',cat: 'bisiklet',title: 'Bisiklet Yolu',               latitude: 38.6690, longitude: 39.2100, color: '#E88C2C' },
+  { id: 'kahve-01',   cat: 'kahve',   title: 'Çarşı Merkezi',               latitude: 38.6731, longitude: 39.2210, color: '#8B5E3C' },
 ];
 
-
-const FILTER_CATS: CategoryKey[] = ['tenis', 'yuruyus', 'kitap', 'muzik', 'foto'];
+const FILTER_CATS = PIN_DEFS.map(p => p.cat) as CategoryKey[];
 
 export function MapScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState<CategoryKey | null>(null);
-  const [userRegion, setUserRegion] = useState<typeof ELAZIG | null>(null);
   const mapRef = useRef<MapView>(null);
   const allEvents = useEventsStore(s => s.events);
   const clubs = useClubsStore(s => s.clubs);
 
-  // Store'daki kulüp ID'lerini ad ipucuyla eşleştir
+  // Kategori bazlı club eşleştirme — aynı kategorideki ilk club'ı kullan
   const MAP_PINS: MapPin[] = useMemo(() => PIN_DEFS.map(def => {
-    const match = clubs.find(c => c.name.includes(def.nameHint));
+    const match = clubs.find(c => c.cat === def.cat);
     return { ...def, clubId: match?.id ?? '', count: 0 };
   }), [clubs]);
 
@@ -86,7 +86,6 @@ export function MapScreen({ navigation }: Props) {
           latitudeDelta: 0.06,
           longitudeDelta: 0.06,
         };
-        setUserRegion(region);
         mapRef.current?.animateToRegion(region, 600);
       } catch {
         // Konum alınamadı — Elazığ merkezi üzerinde kal
@@ -94,22 +93,25 @@ export function MapScreen({ navigation }: Props) {
     })();
   }, []);
 
-  // Pin başına store'dan gerçek etkinlikleri hesapla
+  // Her pin için ilgili etkinlikleri hesapla
   const pinEvents = useMemo(() => {
     const map: Record<string, typeof allEvents> = {};
     for (const pin of MAP_PINS) {
-      map[pin.id] = allEvents.filter(e => e.clubId === pin.clubId);
+      // Hem clubId eşleşmesi hem de kategori eşleşmesi
+      map[pin.id] = allEvents.filter(e =>
+        (pin.clubId && e.clubId === pin.clubId) || e.cat === pin.cat
+      );
     }
     return map;
-  }, [allEvents]);
+  }, [allEvents, MAP_PINS]);
 
   const visiblePins = useMemo(() => {
     const base = MAP_PINS.map(p => ({
       ...p,
-      count: pinEvents[p.id]?.length || p.count,
+      count: pinEvents[p.id]?.length ?? 0,
     }));
     return activeFilter ? base.filter(p => p.cat === activeFilter) : base;
-  }, [activeFilter, pinEvents]);
+  }, [activeFilter, pinEvents, MAP_PINS]);
 
   const goToPin = (pin: MapPin) => {
     setSelectedPin(pin);
@@ -121,9 +123,13 @@ export function MapScreen({ navigation }: Props) {
     }, 400);
   };
 
+  const handlePinPress = () => {
+    if (!selectedPin?.clubId) return;
+    navigation.navigate('ClubProfile', { clubId: selectedPin.clubId });
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Harita */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -146,7 +152,7 @@ export function MapScreen({ navigation }: Props) {
               <View style={[styles.markerWrap, isSelected && styles.markerWrapSelected]}>
                 <View style={[styles.markerBubble, { backgroundColor: isSelected ? pin.color : colors.surface }]}>
                   <CategoryIcon name={pin.cat} size={isSelected ? 18 : 14} filled={isSelected} />
-                  {pin.count > 1 && (
+                  {pin.count > 0 && (
                     <Text style={[styles.markerCount, { color: isSelected ? '#fff' : colors.ink }]}>
                       {pin.count}
                     </Text>
@@ -159,7 +165,7 @@ export function MapScreen({ navigation }: Props) {
         })}
       </MapView>
 
-      {/* Üst arama + SafeArea */}
+      {/* Üst arama + filtreler */}
       <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.searchBar}
@@ -171,7 +177,6 @@ export function MapScreen({ navigation }: Props) {
           <IcnFilter size={18} color={colors.stone} />
         </TouchableOpacity>
 
-        {/* Kategori filtreler */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -179,6 +184,7 @@ export function MapScreen({ navigation }: Props) {
         >
           {FILTER_CATS.map((key) => {
             const def = categories[key];
+            if (!def) return null;
             const isActive = activeFilter === key;
             return (
               <TouchableOpacity
@@ -195,7 +201,7 @@ export function MapScreen({ navigation }: Props) {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Alt kart — seçili konum */}
+      {/* Alt kart — seçili pin */}
       {selectedPin && (
         <View style={styles.bottomCard}>
           <View style={styles.bottomCardDragRow}>
@@ -210,23 +216,27 @@ export function MapScreen({ navigation }: Props) {
               <Text style={styles.locationTitle}>{selectedPin.title}</Text>
               <View style={styles.locationMeta}>
                 <IcnCalendar size={13} color={colors.stone} />
-                <Text style={styles.locationMetaText}>{selectedPin.count} aktif etkinlik</Text>
+                <Text style={styles.locationMetaText}>
+                  {pinEvents[selectedPin.id]?.length ?? 0} aktif etkinlik
+                </Text>
                 <View style={styles.dot} />
                 <IcnPin size={13} color={colors.stone} />
-                <Text style={styles.locationMetaText}>~1.2km</Text>
+                <Text style={styles.locationMetaText}>Elazığ</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={[styles.goBtn, { backgroundColor: selectedPin.color }]}
-              onPress={() => navigation.navigate('ClubProfile', { clubId: selectedPin.clubId })}
-            >
-              <Text style={styles.goBtnText}>Gör</Text>
-            </TouchableOpacity>
+            {!!selectedPin.clubId && (
+              <TouchableOpacity
+                style={[styles.goBtn, { backgroundColor: selectedPin.color }]}
+                onPress={handlePinPress}
+              >
+                <Text style={styles.goBtnText}>Gör</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Mini etkinlik kartları */}
           <View style={{ gap: 8, marginTop: 4 }}>
-            {(pinEvents[selectedPin.id] ?? []).map((ev, i) => (
+            {(pinEvents[selectedPin.id] ?? []).slice(0, 3).map((ev, i) => (
               <TouchableOpacity
                 key={ev.id}
                 style={styles.miniEventCard}
@@ -235,7 +245,7 @@ export function MapScreen({ navigation }: Props) {
               >
                 <PhotoSlot tone={String((i % 5) + 1) as any} height={54} width={54} style={{ borderRadius: r.sm }} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.miniEventTitle}>{ev.title}</Text>
+                  <Text style={styles.miniEventTitle} numberOfLines={1}>{ev.title}</Text>
                   <Text style={styles.miniEventMeta}>{ev.date} · {ev.time} · {ev.count} katılıyor</Text>
                 </View>
                 <View style={[styles.joinMiniBtn, { backgroundColor: selectedPin.color }]}>
@@ -256,12 +266,9 @@ export function MapScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  map: {
-    ...StyleSheet.absoluteFill,
-  },
+  map: { ...StyleSheet.absoluteFill },
   topOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    gap: 8,
+    position: 'absolute', top: 0, left: 0, right: 0, gap: 8,
   },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -282,9 +289,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope_700Bold', fontSize: fontSizes.md, color: colors.ink,
   },
   markerWrap: { alignItems: 'center' },
-  markerWrapSelected: {
-    transform: [{ scale: 1.15 }],
-  },
+  markerWrapSelected: { transform: [{ scale: 1.15 }] },
   markerBubble: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 7, borderRadius: r.pill,
@@ -296,9 +301,7 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent', borderRightColor: 'transparent',
     borderTopColor: colors.surface,
   },
-  markerCount: {
-    fontFamily: 'Manrope_700Bold', fontSize: fontSizes.sm,
-  },
+  markerCount: { fontFamily: 'Manrope_700Bold', fontSize: fontSizes.sm },
   bottomCard: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: colors.surface,
@@ -312,15 +315,11 @@ const styles = StyleSheet.create({
   pinIconCircle: {
     width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
   },
-  locationTitle: {
-    fontFamily: 'Manrope_700Bold', fontSize: fontSizes.xl, color: colors.ink,
-  },
+  locationTitle: { fontFamily: 'Manrope_700Bold', fontSize: fontSizes.xl, color: colors.ink },
   locationMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   locationMetaText: { fontFamily: 'Manrope_500Medium', fontSize: fontSizes.md, color: colors.stone },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.stone3 },
-  goBtn: {
-    paddingHorizontal: 16, paddingVertical: 9, borderRadius: r.pill,
-  },
+  goBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: r.pill },
   goBtnText: { fontFamily: 'Manrope_700Bold', fontSize: fontSizes.md, color: '#fff' },
   miniEventCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

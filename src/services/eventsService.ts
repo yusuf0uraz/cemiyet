@@ -16,7 +16,7 @@ export interface CreateEventPayload {
 }
 
 export const eventsService = {
-  async getEvents(params?: { cat?: string; live?: boolean; club_id?: string }): Promise<FeedEvent[]> {
+  async getEvents(params?: { cat?: string; live?: boolean; club_id?: string; q?: string }): Promise<FeedEvent[]> {
     const { data } = await apiClient.get<FeedEvent[]>(ENDPOINTS.events.list, { params });
     return data;
   },
@@ -48,6 +48,11 @@ export const eventsService = {
 
   async getMyBookmarks(): Promise<FeedEvent[]> {
     const { data } = await apiClient.get<FeedEvent[]>(ENDPOINTS.events.myBookmarks);
+    return data;
+  },
+
+  async getMyJoined(): Promise<FeedEvent[]> {
+    const { data } = await apiClient.get<FeedEvent[]>(ENDPOINTS.events.myJoined);
     return data;
   },
 };

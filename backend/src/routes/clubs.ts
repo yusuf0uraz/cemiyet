@@ -8,11 +8,12 @@ const router = Router();
 
 // GET /clubs
 router.get('/', async (req, res) => {
-  const { cat, limit = '20', offset = '0' } = req.query as Record<string, string>;
+  const { cat, q, limit = '20', offset = '0' } = req.query as Record<string, string>;
   let sql = 'SELECT * FROM clubs WHERE 1=1';
   const params: unknown[] = [];
   let i = 1;
   if (cat) { sql += ` AND cat = $${i++}`; params.push(cat); }
+  if (q)   { sql += ` AND (name ILIKE $${i} OR description ILIKE $${i})`; params.push(`%${q}%`); i++; }
   sql += ` ORDER BY member_count DESC LIMIT $${i++} OFFSET $${i++}`;
   params.push(Number(limit), Number(offset));
   const { rows } = await pool.query(sql, params);
@@ -99,11 +100,13 @@ router.post('/:id/join', requireAuth, async (req, res) => {
   }
 
   if (model === 'onay') {
-    // Başvuru oluştur (application_note isteğe bağlı)
     const { application_note = '' } = req.body as { application_note?: string };
     await pool.query(
-      'INSERT INTO club_join_requests (user_id, club_id, application_note) VALUES ($1, $2, $3) ON CONFLICT (user_id, club_id) DO UPDATE SET status = $4, application_note = $3',
-      [req.userId, id, application_note, 'bekliyor']
+      `INSERT INTO club_join_requests (user_id, club_id, application_note, status)
+       VALUES ($1, $2, $3, 'bekliyor')
+       ON CONFLICT (user_id, club_id) DO UPDATE
+         SET status = 'bekliyor', application_note = EXCLUDED.application_note`,
+      [req.userId, id, application_note]
     );
     res.json({ joined: false, status: 'bekliyor', message: 'Başvurunuz alındı. Yönetici onayı bekleniyor.' });
     return;

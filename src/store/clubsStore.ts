@@ -61,7 +61,8 @@ export const useClubsStore = create<ClubsState>((set, get) => ({
       const raw = await clubsService.getClubs();
       const clubs = (raw as unknown as Record<string, unknown>[]).map(c => mapApiClub(c));
       set({ clubs, loading: false });
-    } catch {
+    } catch (err: any) {
+      if (__DEV__) console.warn('[Clubs] fetchClubs hata:', err?.message);
       set({ loading: false });
     }
   },
@@ -76,14 +77,15 @@ export const useClubsStore = create<ClubsState>((set, get) => ({
       const raw = await clubsService.createClub(payload);
       const club = mapApiClub(raw as unknown as Record<string, unknown>, 'reis');
       set(s => ({ clubs: [club, ...s.clubs], loading: false }));
-    } catch {
-      // Optimistik ekleme
+    } catch (err: any) {
+      if (__DEV__) console.warn('[Clubs] createClub hata:', err?.message);
       get().addClub({
         name: payload.name,
         cat: payload.cat as CategoryKey,
         photo: payload.photo ?? imageFor(payload.cat),
         memberCount: 1,
         myRole: 'reis',
+        membershipModel: (payload as any).membership_model ?? 'acik',
         description: payload.description,
       });
       set({ loading: false });

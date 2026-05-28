@@ -32,7 +32,7 @@ router.get('/interests', requireAuth, async (req, res) => {
 // GET /users/me — kendi profili (kısayol)
 router.get('/me', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT id, name, username, bio, city, avatar_tone, verified FROM users WHERE id = $1',
+    'SELECT id, name, username, bio, city, avatar_tone, avatar_url, verified FROM users WHERE id = $1',
     [req.userId]
   );
   if (rows.length === 0) { res.status(404).json({ error: 'Kullanıcı bulunamadı' }); return; }
@@ -43,7 +43,7 @@ router.get('/me', requireAuth, async (req, res) => {
 router.get('/:id', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT
-       u.id, u.name, u.username, u.bio, u.city, u.avatar_tone, u.verified,
+       u.id, u.name, u.username, u.bio, u.city, u.avatar_tone, u.avatar_url, u.verified,
        (SELECT COUNT(*) FROM follows WHERE following_id = u.id)::int AS follower_count,
        (SELECT COUNT(*) FROM follows WHERE follower_id  = u.id)::int AS following_count,
        (SELECT COUNT(*) FROM event_participants WHERE user_id = u.id)::int  AS event_count,
