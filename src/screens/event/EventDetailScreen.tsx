@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,29 +17,33 @@ import { ReactionBar, ReactionPickerCompact } from '../../components/ui/Reaction
 import { PhotoSlot } from '../../components/ui/Card';
 import { colors, r, fontSizes, categories } from '../../tokens';
 import type { HomeStackParamList } from '../../types';
-import { useEventsStore } from '../../store/eventsStore';
+import { useEventsStore, type FeedEvent } from '../../store/eventsStore';
+import { eventsService } from '../../services/eventsService';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EventDetail'>;
-
-const PARTICIPANTS = [
-  { name: 'Ahmet K.', tone: '1' as const, role: 'reis' as const },
-  { name: 'Selin Y.', tone: '3' as const, role: null },
-  { name: 'Burak T.', tone: '2' as const, role: null },
-  { name: 'Meryem A.', tone: '4' as const, role: null },
-  { name: 'Kemal S.', tone: '5' as const, role: null },
-];
 
 const REACTIONS = { bravo: 14, geliyorum: 23, super: 8, tebrik: 5 };
 
 export function EventDetailScreen({ navigation, route }: Props) {
-  const eventId = route.params?.eventId ?? 'ev1';
+  const eventId = route.params?.eventId ?? '';
   const events = useEventsStore(s => s.events);
   const bookmarks = useEventsStore(s => s.bookmarks);
   const joinedEvents = useEventsStore(s => s.joinedEvents);
   const toggleBookmark = useEventsStore(s => s.toggleBookmark);
   const toggleJoin = useEventsStore(s => s.toggleJoin);
 
-  const event = events.find(e => e.id === eventId) ?? events[0];
+  const [apiEvent, setApiEvent] = useState<FeedEvent | null>(null);
+  const storeEvent = events.find(e => e.id === eventId);
+  const event = storeEvent ?? apiEvent;
+
+  // Store'da yoksa API'den çek
+  useEffect(() => {
+    if (!storeEvent && eventId) {
+      eventsService.getEvent(eventId)
+        .then(e => setApiEvent(e))
+        .catch(() => {});
+    }
+  }, [eventId, storeEvent]);
   const saved = bookmarks.includes(eventId);
   const joined = joinedEvents.includes(eventId);
   const [showReactions, setShowReactions] = useState(false);

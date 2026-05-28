@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  IcnSearch, IcnFilter, IcnClose, IcnCalendar, IcnUsers, IcnPin,
+  IcnSearch, IcnFilter, IcnClose, IcnCalendar, IcnUsers,
 } from '../../components/ui/Icons';
 import { CategoryIcon } from '../../components/ui/CategoryIcon';
 import { NameWithBadges } from '../../components/ui/NameWithBadges';
@@ -14,11 +14,12 @@ import { MonoLabel } from '../../components/ui/Chip';
 import { colors, r, fontSizes, categories } from '../../tokens';
 import type { CategoryKey } from '../../tokens';
 import type { DiscoverStackParamList } from '../../types';
-import { useEventsStore } from '../../store/eventsStore';
-import { useClubsStore } from '../../store/clubsStore';
+import { useEventsStore, type FeedEvent } from '../../store/eventsStore';
+import { useClubsStore, type ClubItem } from '../../store/clubsStore';
+import { eventsService } from '../../services/eventsService';
+import { clubsService } from '../../services/clubsService';
 
 type Props = NativeStackScreenProps<DiscoverStackParamList, 'Search'>;
-
 type SearchTab = 'hepsi' | 'etkinlikler' | 'cemiyetler';
 
 const RECENT_SEARCHES = ['Tenis Turnuvası', 'Hazar Gölü', 'Kitap Cemiyeti', 'Elazığ Fotoğraf'];
@@ -26,7 +27,6 @@ const TRENDING_CATS: CategoryKey[] = ['tenis', 'yuruyus', 'kitap', 'foto'];
 
 const FILTER_OPTIONS = {
   zaman: ['Bugün', 'Bu hafta', 'Bu ay'],
-  yer: ['Yakınımda', '1km', '5km', '10km'],
   katilim: ['Açık', 'Onaylı', 'Ücretsiz'],
 };
 
@@ -35,28 +35,66 @@ export function SearchScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<SearchTab>('hepsi');
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [apiEvents, setApiEvents] = useState<FeedEvent[]>([]);
+  const [apiClubs, setApiClubs] = useState<ClubItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const events = useEventsStore(s => s.events);
-  const clubs = useClubsStore(s => s.clubs);
+  const storeEvents = useEventsStore(s => s.events);
+  const storeClubs = useClubsStore(s => s.clubs);
 
   const q = query.toLowerCase().trim();
 
-  const matchedEvents = useMemo(() =>
-    q ? events.filter(e =>
+  // Debounced API search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!q || q.length < 2) {
+      setApiEvents([]);
+      setApiClubs([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const [evRes, clRes] = await Promise.allSettled([
+          eventsService.getEvents({ q }),
+          clubsService.getClubs({ q }),
+        ]);
+        if (evRes.status === 'fulfilled') setApiEvents(evRes.value as any);
+        if (clRes.status === 'fulfilled') setApiClubs(clRes.value as any);
+      } catch {
+        // API erişilemez — store sonuçları kullan
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [q]);
+
+  // Store + API sonuçlarını birleştir (tekrar etmeyecek şekilde)
+  const matchedEvents = useMemo(() => {
+    if (!q) return [];
+    const storeFiltered = storeEvents.filter(e =>
       e.title.toLowerCase().includes(q) ||
       e.club.toLowerCase().includes(q) ||
-      e.place.toLowerCase().includes(q) ||
-      e.cat.toLowerCase().includes(q)
-    ) : [],
-  [q, events]);
+      e.place.toLowerCase().includes(q)
+    );
+    const storeIds = new Set(storeFiltered.map(e => e.id));
+    const apiOnly = apiEvents.filter(e => !storeIds.has(e.id));
+    return [...storeFiltered, ...apiOnly];
+  }, [q, storeEvents, apiEvents]);
 
-  const matchedClubs = useMemo(() =>
-    q ? clubs.filter(c =>
+  const matchedClubs = useMemo(() => {
+    if (!q) return [];
+    const storeFiltered = storeClubs.filter(c =>
       c.name.toLowerCase().includes(q) ||
-      c.cat.toLowerCase().includes(q) ||
       (c.description ?? '').toLowerCase().includes(q)
-    ) : [],
-  [q, clubs]);
+    );
+    const storeIds = new Set(storeFiltered.map(c => c.id));
+    const apiOnly = apiClubs.filter(c => !storeIds.has(c.id));
+    return [...storeFiltered, ...apiOnly];
+  }, [q, storeClubs, apiClubs]);
 
   const toggleFilter = (group: string, val: string) => {
     setActiveFilters(prev => ({
@@ -180,7 +218,10 @@ export function SearchScreen({ navigation }: Props) {
           </View>
         ) : (
           <View style={{ gap: 8 }}>
-            <Text style={styles.resultCount}>{totalCount} sonuç</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Text style={styles.resultCount}>{searching ? 'Aranıyor...' : `${totalCount} sonuç`}</Text>
+              {searching && <ActivityIndicator size="small" color={colors.ember} />}
+            </View>
 
             {/* Etkinlik sonuçları */}
             {(activeTab === 'hepsi' || activeTab === 'etkinlikler') && matchedEvents.map((ev, index) => (

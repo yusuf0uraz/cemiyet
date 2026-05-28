@@ -14,6 +14,7 @@ import type { MeStackParamList } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../services/authService';
 import { pickImageOrCamera } from '../../hooks/useImagePicker';
+import { uploadImage } from '../../services/uploadService';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'ProfileEdit'>;
 
@@ -31,9 +32,10 @@ export function ProfileEditScreen({ navigation }: Props) {
   const [usernameChecking, setUsernameChecking] = useState(false);
   const usernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [uploading, setUploading] = useState(false);
   const bioMaxLen = 140;
-  const changed = name !== user?.name || username !== user?.username || bio !== user?.bio;
-  const canSave = changed && usernameAvail && !usernameChecking;
+  const changed = name !== user?.name || username !== user?.username || bio !== user?.bio || !!avatarUri;
+  const canSave = changed && usernameAvail && !usernameChecking && !uploading;
 
   const handleUsernameChange = (t: string) => {
     const cleaned = t.replace(/[^a-z0-9_.]/g, '');
@@ -58,8 +60,19 @@ export function ProfileEditScreen({ navigation }: Props) {
   };
 
   const handleSave = async () => {
-    if (!canSave || loading) { navigation.goBack(); return; }
-    await updateProfile({ name, username, bio });
+    if ((!changed && !avatarUri) || loading) { navigation.goBack(); return; }
+    let avatarUrl: string | undefined;
+    if (avatarUri) {
+      setUploading(true);
+      try {
+        avatarUrl = await uploadImage(avatarUri, 'avatar');
+      } catch {
+        // Upload başarısız olsa bile diğer alanları kaydet
+      } finally {
+        setUploading(false);
+      }
+    }
+    await updateProfile({ name, username, bio, ...(avatarUrl ? { avatarUrl } : {}) });
     navigation.goBack();
   };
 
@@ -78,7 +91,7 @@ export function ProfileEditScreen({ navigation }: Props) {
           activeOpacity={0.85}
         >
           <IcnCheck size={16} color="#fff" />
-          <Text style={styles.saveBtnText}>{loading ? 'Kaydediliyor...' : 'Kaydet'}</Text>
+          <Text style={styles.saveBtnText}>{uploading ? 'Yükleniyor...' : loading ? 'Kaydediliyor...' : 'Kaydet'}</Text>
         </TouchableOpacity>
       </View>
 

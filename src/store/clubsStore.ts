@@ -124,9 +124,10 @@ export const useClubsStore = create<ClubsState>((set, get) => ({
           tone: '2',
           text: `"${club?.name}" cemiyetine başvurun alındı. Onay bekleniyor.`,
           accent: '#D49B2E',
+          entityId: id,
+          entityType: 'club',
         });
       } else if (res.joined) {
-        // Doğrudan üye oldu
         set(s => ({
           clubs: s.clubs.map(c =>
             c.id === id ? { ...c, myRole: 'aza', joinStatus: 'uye', memberCount: c.memberCount + 1 } : c
@@ -139,6 +140,8 @@ export const useClubsStore = create<ClubsState>((set, get) => ({
           tone: '2',
           text: `"${club?.name ?? 'Cemiyet'}" cemiyetine katıldın. Merhaba!`,
           accent: '#2E8B57',
+          entityId: id,
+          entityType: 'club',
         });
       }
     } catch (err: any) {

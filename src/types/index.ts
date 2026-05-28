@@ -191,6 +191,7 @@ export type MeStackParamList = {
   OtherProfile: { userId: string };
   ProfileEdit: undefined;
   ClubProfile: { clubId: string };
+  EventDetail: { eventId: string };
 };
 
 export type CreateModalParamList = {

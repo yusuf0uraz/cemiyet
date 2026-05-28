@@ -7,6 +7,7 @@ import { PrivacySettingsScreen } from '../screens/profile/PrivacySettingsScreen'
 import { OtherProfileScreen } from '../screens/profile/OtherProfileScreen';
 import { ProfileEditScreen } from '../screens/profile/ProfileEditScreen';
 import { ClubProfileScreen } from '../screens/club/ClubProfileScreen';
+import { EventDetailScreen } from '../screens/event/EventDetailScreen';
 
 const Stack = createNativeStackNavigator<MeStackParamList>();
 
@@ -19,6 +20,7 @@ export function MeNavigator() {
       <Stack.Screen name="OtherProfile" component={OtherProfileScreen} />
       <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
       <Stack.Screen name="ClubProfile" component={ClubProfileScreen} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
     </Stack.Navigator>
   );
 }

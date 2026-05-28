@@ -36,7 +36,7 @@ export interface ClubMember {
 }
 
 export const clubsService = {
-  async getClubs(params?: { cat?: string }): Promise<ClubItem[]> {
+  async getClubs(params?: { cat?: string; q?: string }): Promise<ClubItem[]> {
     const { data } = await apiClient.get<ClubItem[]>(ENDPOINTS.clubs.list, { params });
     return data;
   },

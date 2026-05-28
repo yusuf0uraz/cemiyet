@@ -9,11 +9,14 @@ export interface NotifItem {
   id: string;
   type: NotifType;
   actor: string;
+  actorId?: string;
   tone: '1' | '2' | '3' | '4' | '5';
   text: string;
   time: string; // ISO
   isRead: boolean;
   accent: string;
+  entityId?: string;   // event/club/user id — navigation için
+  entityType?: 'event' | 'club' | 'user';
 }
 
 interface NotifState {

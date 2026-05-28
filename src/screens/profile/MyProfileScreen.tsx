@@ -119,14 +119,18 @@ export function MyProfileScreen({ navigation }: Props) {
           {/* Avatar + isim */}
           <View style={styles.profileHeader}>
             <StoryRing size={104} live>
-              <LinearGradient
-                colors={[colors.emberGlow, colors.emberDeep]}
-                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 52 }}
-              >
-                <Text style={{ color: '#fff', fontSize: 38, fontFamily: 'Manrope_800ExtraBold' }}>
-                  {user?.name?.charAt(0) ?? 'U'}
-                </Text>
-              </LinearGradient>
+              {user?.avatarUrl ? (
+                <Avatar uri={user.avatarUrl} size={96} tone={user.avatarTone ?? '1'} name={user.name} />
+              ) : (
+                <LinearGradient
+                  colors={[colors.emberGlow, colors.emberDeep]}
+                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 52 }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 38, fontFamily: 'Manrope_800ExtraBold' }}>
+                    {user?.name?.charAt(0) ?? 'U'}
+                  </Text>
+                </LinearGradient>
+              )}
             </StoryRing>
 
             <View style={styles.nameArea}>

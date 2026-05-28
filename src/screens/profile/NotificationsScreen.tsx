@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNotifStore } from '../../store/notifStore';
+import { followsService } from '../../services/followsService';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
@@ -203,7 +204,7 @@ export function NotificationsScreen({ navigation }: Props) {
             </View>
             {liveNotifs.map((notif, i) => (
               <Animated.View key={notif.id} entering={FadeInDown.delay(i * 50)}>
-                <NotifRow notif={notif} onRead={handleMarkRead} />
+                <NotifRow notif={notif} onRead={handleMarkRead} navigation={navigation} />
               </Animated.View>
             ))}
           </>
@@ -215,7 +216,7 @@ export function NotificationsScreen({ navigation }: Props) {
         </View>
         {staticToday.map((notif, i) => (
           <Animated.View key={notif.id} entering={FadeInDown.delay((liveNotifs.length + i) * 60)}>
-            <NotifRow notif={notif} onRead={handleMarkRead} />
+            <NotifRow notif={notif} onRead={handleMarkRead} navigation={navigation} />
           </Animated.View>
         ))}
 
@@ -225,7 +226,7 @@ export function NotificationsScreen({ navigation }: Props) {
         </View>
         {staticWeek.map((notif, i) => (
           <Animated.View key={notif.id} entering={FadeInDown.delay((liveNotifs.length + TODAY_NOTIFS.length + i) * 60)}>
-            <NotifRow notif={notif} onRead={handleMarkRead} />
+            <NotifRow notif={notif} onRead={handleMarkRead} navigation={navigation} />
           </Animated.View>
         ))}
       </ScrollView>
@@ -233,7 +234,13 @@ export function NotificationsScreen({ navigation }: Props) {
   );
 }
 
-function NotifRow({ notif, onRead }: { notif: Notif; onRead: (id: string) => void }) {
+function NotifRow({
+  notif, onRead, navigation,
+}: {
+  notif: Notif;
+  onRead: (id: string) => void;
+  navigation: Props['navigation'];
+}) {
   const accent = notifAccent(notif.type);
 
   return (
@@ -283,12 +290,28 @@ function NotifRow({ notif, onRead }: { notif: Notif; onRead: (id: string) => voi
           </View>
         )}
         {notif.hasAction && notif.type === 'follow' && (
-          <TouchableOpacity style={styles.followBackBtn}>
+          <TouchableOpacity
+            style={styles.followBackBtn}
+            onPress={async () => {
+              if ((notif as any).actorId) {
+                await followsService.toggle((notif as any).actorId).catch(() => {});
+              }
+              onRead(notif.id);
+            }}
+          >
             <Text style={styles.followBackText}>Geri Takip Et</Text>
           </TouchableOpacity>
         )}
         {notif.hasAction && notif.type === 'event_reminder' && (
-          <TouchableOpacity style={styles.viewBtn}>
+          <TouchableOpacity
+            style={styles.viewBtn}
+            onPress={() => {
+              if ((notif as any).entityId) {
+                navigation.navigate('EventDetail', { eventId: (notif as any).entityId });
+              }
+              onRead(notif.id);
+            }}
+          >
             <Text style={styles.viewBtnText}>Etkinliği Gör →</Text>
           </TouchableOpacity>
         )}

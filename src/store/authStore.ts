@@ -167,7 +167,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfile: async (updates) => {
     set({ loading: true, error: null });
     try {
-      const raw = await authService.updateMe(updates);
+      const payload: Record<string, unknown> = { ...updates };
+      if (updates.avatarUrl) payload.avatar_url = updates.avatarUrl;
+      const raw = await authService.updateMe(payload as any);
       const user = mapApiUser(raw as unknown as Record<string, unknown>);
       set({ user: { ...user, token: get().user?.token }, loading: false });
     } catch {

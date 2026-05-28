@@ -171,6 +171,8 @@ export const useEventsStore = create<EventsState>((set, get) => ({
         tone: '1',
         text: `${title} etkinliğine katıldın! ${event?.date ?? ''} · ${event?.time ?? ''}`.trim(),
         accent: '#E84C2C',
+        entityId: id,
+        entityType: 'event',
       });
     }
     const call = isJoined ? eventsService.leaveEvent(id) : eventsService.joinEvent(id);
